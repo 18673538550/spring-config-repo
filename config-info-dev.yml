@@ -1,0 +1,58 @@
+server:
+  port: 9920
+spring:
+  profiles:
+    active: dev
+  application:
+    name: gateway-service
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          # 服务名小写
+          lower-case-service-id: true
+      routes:
+      - id: consumer-service
+        # lb代表从注册中心获取服务，且已负载均衡方式转发
+        uri: lb://consumer-service
+        predicates:
+        - Path=/consumer/**
+        # 加上StripPrefix=1，否则转发到后端服务时会带上consumer前缀
+        filters:
+        #- TokenAuthenticationFilter
+        - name: Hystrix
+          args:
+            name: default
+            fallbackUri: 'forward:/defaultfallback'
+        - StripPrefix=1
+
+
+hystrix:
+  command:
+    default:
+      execution:
+        isolation:
+          strategy:  SEMAPHORE
+          thread:
+            timeoutInMilliseconds:  6000
+  shareSecurityContext: true
+
+# 注册中心
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: http://ly:ly@localhost:10025/eureka/
+
+
+# 暴露监控端点
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  endpoint:
+    health:
+      show-details: always
